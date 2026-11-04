@@ -25,3 +25,8 @@ def read_chunk(seconds):
         blocks.append(block)
         total += len(block)
     return np.concatenate(blocks).flatten()
+
+def discard_buffered():
+    """Drop audio captured so far, so the next read starts from now."""
+    while not audio_queue.empty():
+        audio_queue.get_nowait()

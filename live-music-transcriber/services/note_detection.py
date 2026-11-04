@@ -37,7 +37,7 @@ def snap_to_note(midi, current, candidate, tolerance):
             return held
     return int(round(midi))
 
-def track_notes(f0, onsets, state, sr, min_frames=10, min_rest_frames=None, tolerance=0.7):
+def track_notes(f0, onsets, state, min_frames=10, min_rest_frames=None, tolerance=0.7):
     current, frames, candidate, candidate_frames, split_at = state
     finished = []
     for midi, onset in zip(librosa.hz_to_midi(f0), onsets):
@@ -45,7 +45,9 @@ def track_notes(f0, onsets, state, sr, min_frames=10, min_rest_frames=None, tole
         if current is None:
             current = note
         if onset and current and split_at is None and frames >= min_frames:
-            split_at = frames  # possible re-attack: where current would end if the same note carries on
+            # possible re-attack: where current would end if the same note carries on. A gap just before it
+            # (candidate frames not yet added to current) belongs to the first note, like any gap between notes
+            split_at = frames + candidate_frames
         if note == current:
             frames += 1 + candidate_frames  # glitch over, keep its frames
             candidate, candidate_frames = None, 0
