@@ -7,15 +7,20 @@ import time
 def describe(note, frames, denomination):
     return f"{note or 'Rest'} - {denomination} ({frames} frames)"
 
-# lines finished notes up with the measures and prints them, with a header whenever a new measure starts
+# lines finished notes up with the measures and prints them
 def show(timing, finished, snap, min_rest, shown_measure):
     for note, length in finished:
-        for measure, note, frames, denomination in timing.place(note, length, snap, min_rest):
-            if measure != shown_measure:
-                print(f"\n--- Measure {measure} ---")
-                shown_measure = measure
-            if frames >= snap:  # anything shorter is timing slop around a bar line, not a note or rest
-                print(describe(note, frames, denomination))
+        shown_measure = print_pieces(timing.add(note, length, snap, min_rest), snap, shown_measure)
+    return shown_measure
+
+# prints placed pieces, with a header whenever a new measure starts
+def print_pieces(pieces, snap, shown_measure):
+    for measure, note, frames, denomination in pieces:
+        if measure != shown_measure:
+            print(f"\n--- Measure {measure} ---")
+            shown_measure = measure
+        if frames >= snap:  # anything shorter is timing slop around a bar line, not a note or rest
+            print(describe(note, frames, denomination))
     return shown_measure
 
 # keeps the measures moving in real time: a new measure starts as soon as the audio reaches its bar line.
@@ -32,6 +37,8 @@ def advance_measures(timing, state, snap, min_rest, shown_measure):
             frames -= part
             if split_at is not None:  # keep a possible re-attack pointing at the same frame
                 split_at = split_at - part if split_at > part else None
+        # a triplet can't run over a bar line, so notes still held back go out as ordinary notes
+        shown_measure = print_pieces(timing.flush(snap, min_rest), snap, shown_measure)
         timing.close_measure()
         shown_measure = timing.measure
         print(f"\n--- Measure {shown_measure} ---")
@@ -78,7 +85,8 @@ def main():
                 state, shown_measure = advance_measures(timing, state, min_frames, min_rest_frames, shown_measure)
         except KeyboardInterrupt:
             current, frames, _, candidate_frames, _ = state
-            show(timing, [(nd.note_name(current), frames + candidate_frames)], min_frames, min_rest_frames, shown_measure)
+            shown_measure = show(timing, [(nd.note_name(current), frames + candidate_frames)], min_frames, min_rest_frames, shown_measure)
+            print_pieces(timing.flush(min_frames, min_rest_frames), min_frames, shown_measure)
             print("\nStopped.")
 
 if __name__ == "__main__":
